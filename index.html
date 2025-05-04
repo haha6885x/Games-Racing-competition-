@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>games racing competition</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(10, 30px);
+      grid-template-rows: repeat(11, 30px);
+      margin: 20px auto;
+      background: #333;
+      width: max-content;
+    }
+    .cell {
+      width: 30px;
+      height: 30px;
+      background: #fff;
+      position: relative;
+      font-size: 8px;
+      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .token {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      font-size: 7px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .player-circle {
+      width: 16px;
+      height: 16px;
+      background: blue;
+      border-radius: 50%;
+    }
+    .computer-circle {
+      width: 16px;
+      height: 16px;
+      background: red;
+      border-radius: 50%;
+    }
+    .label {
+      font-size: 6px;
+      color: black;
+    }
+    #controls {
+      margin-top: 20px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+    }
+    #dice {
+      font-size: 24px;
+      margin-top: 10px;
+    }
+    #info {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .celebrate {
+      color: yellow;
+      font-size: 24px;
+      animation: blink 0.5s infinite alternate;
+    }
+    .eliminated {
+      color: red;
+      font-size: 20px;
+      animation: blink 0.3s infinite alternate;
+    }
+    @keyframes blink {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    #message {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Lomba Balap Kamu vs Computer</h2>
+  <div id="board"></div>
+  <div id="controls">
+    <button onclick="rollDice()" id="rollBtn">Lempar Dadu</button>
+    <div id="info">Giliran: Kamu</div>
+    <div id="dice">Dadu: -</div>
+    <div id="message"></div>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const diceDisplay = document.getElementById("dice");
+    const infoDisplay = document.getElementById("info");
+    const messageDisplay = document.getElementById("message");
+    const rollBtn = document.getElementById("rollBtn");
+
+    const cells = [];
+    for (let i = 0; i <= 100; i++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = i === 0 ? "Start" : i === 100 ? "Finish" : i;
+      board.appendChild(cell);
+      cells.push(cell);
+    }
+
+    let playerPos = 0;
+    let comPos = 0;
+    let turn = "player";
+
+    const playerToken = createToken("Kamu", "player-circle");
+    const comToken = createToken("Computer", "computer-circle");
+
+    cells[playerPos].appendChild(playerToken);
+    cells[comPos].appendChild(comToken);
+
+    function createToken(labelText, className) {
+      const container = document.createElement("div");
+      container.className = "token";
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = labelText;
+      const circle = document.createElement("div");
+      circle.className = className;
+      container.appendChild(label);
+      container.appendChild(circle);
+      return container;
+    }
+
+    function rollDice() {
+      rollBtn.disabled = true;
+      messageDisplay.textContent = "";
+      let roll = 1;
+      let count = 0;
+      const interval = setInterval(() => {
+        roll = Math.floor(Math.random() * 6) + 1;
+        diceDisplay.textContent = "Dadu: " + roll;
+        count++;
+        if (count >= 10) {
+          clearInterval(interval);
+          animateMove(turn, roll);
+        }
+      }, 100);
+    }
+
+    function animateMove(who, steps) {
+      let current = who === "player" ? playerPos : comPos;
+      const token = who === "player" ? playerToken : comToken;
+      let target = Math.min(current + steps, 100);
+
+      const step = () => {
+        if (current < target) {
+          cells[current].removeChild(token);
+          current++;
+          cells[current].appendChild(token);
+          if (who === "player") playerPos = current;
+          else comPos = current;
+          setTimeout(step, 200);
+        } else {
+          checkCollision(who);
+          if (current === 100) {
+            celebrate(who);
+            return;
+          }
+          if (steps === 6) {
+            infoDisplay.textContent = "Giliran: " + (who === "player" ? "Kamu (lempar lagi!)" : "Computer (lempar lagi!)");
+            rollBtn.disabled = who === "player" ? false : true;
+            if (who === "computer") setTimeout(() => rollDice(), 1000);
+          } else {
+            turn = who === "player" ? "computer" : "player";
+            infoDisplay.textContent = "Giliran: " + (turn === "player" ? "Kamu" : "Computer");
+            rollBtn.disabled = turn === "player" ? false : true;
+            if (turn === "computer") setTimeout(() => rollDice(), 1000);
+          }
+        }
+      };
+      step();
+    }
+
+    function checkCollision(who) {
+      if (playerPos === comPos && playerPos !== 0) {
+        if (who === "player") {
+          messageDisplay.textContent = "Kill!";
+          animateBack("computer");
+        } else {
+          messageDisplay.innerHTML = `<span class="eliminated">Anda Tereliminasi!</span>`;
+          animateBack("player");
+        }
+      }
+    }
+
+    function animateBack(who) {
+      let current = who === "player" ? playerPos : comPos;
+      const token = who === "player" ? playerToken : comToken;
+
+      const stepBack = () => {
+        if (current > 0) {
+          cells[current].removeChild(token);
+          current--;
+          cells[current].appendChild(token);
+          if (who === "player") playerPos = current;
+          else comPos = current;
+          setTimeout(stepBack, 150);
+        } else {
+          messageDisplay.textContent = "";
+        }
+      };
+      stepBack();
+    }
+
+    function celebrate(who) {
+      if (who === 'player') {
+        infoDisplay.innerHTML = `<span class="celebrate">Selamat Anda Menang!</span>`;
+      } else {
+        infoDisplay.innerHTML = `<span class="lose-message">Yahh kamu kalah<br>Ayo coba lagi</span>`;
+      }
+      setTimeout(() => {
+        cells[playerPos].removeChild(playerToken);
+        cells[comPos].removeChild(comToken);
+        playerPos = 0;
+        comPos = 0;
+        cells[playerPos].appendChild(playerToken);
+        cells[comPos].appendChild(comToken);
+        infoDisplay.textContent = "Giliran: Kamu";
+        turn = "player";
+        rollBtn.disabled = false;
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
